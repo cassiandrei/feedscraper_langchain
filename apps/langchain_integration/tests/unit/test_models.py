@@ -4,6 +4,7 @@ Testes unitários para os modelos do langchain_integration.
 
 from django.core.exceptions import ValidationError
 from django.test import tag
+from django.utils import timezone
 
 from tests.base import BaseUnitTestCase
 from tests.mocks.factories import (
@@ -53,12 +54,18 @@ class DataSourceModelTest(BaseUnitTestCase):
 
     def test_data_source_scraping_config_default(self):
         """Teste de configuração padrão do scraping."""
-        # Arrange & Act
-        data_source = DataSourceFactory(scraping_config=None)
+        # Arrange & Act - Cria DataSource sem especificar scraping_config
+        # para testar o default do modelo
+        data_source = DataSource.objects.create(
+            name="Test Source Default Config",
+            url="http://example.com",
+            content_type="html",
+            description="Test description",
+        )
 
-        # Assert - factory deve ter configuração, mas testamos sem ela
-        if not data_source.scraping_config:
-            self.assertEqual(data_source.scraping_config, {})
+        # Assert - Deve usar o default=dict do modelo
+        self.assertEqual(data_source.scraping_config, {})
+        self.assertIsInstance(data_source.scraping_config, dict)
 
 
 @tag("unit", "models", "fast")
@@ -73,13 +80,15 @@ class TechnicalNoteModelTest(BaseUnitTestCase):
         """Teste de criação de nota técnica."""
         # Arrange & Act
         note = TechnicalNoteFactory(
-            data_source=self.data_source, title="Test Note", content="Test content"
+            source=self.data_source,
+            title="Test Note",
+            content_preview="Test content preview",
         )
 
         # Assert
         self.assertEqual(note.title, "Test Note")
-        self.assertEqual(note.content, "Test content")
-        self.assertEqual(note.data_source, self.data_source)
+        self.assertEqual(note.content_preview, "Test content preview")
+        self.assertEqual(note.source, self.data_source)
         self.assertIsNotNone(note.id)
 
     def test_technical_note_str_representation(self):
@@ -88,25 +97,44 @@ class TechnicalNoteModelTest(BaseUnitTestCase):
         note = TechnicalNoteFactory(title="Test Note")
 
         # Assert
-        self.assertEqual(str(note), "Test Note")
+        # O modelo retorna f"{self.title[:50]}... - {self.source.name}"
+        expected_str = f"{note.title[:50]}... - {note.source.name}"
+        self.assertEqual(str(note), expected_str)
 
-    def test_technical_note_content_hash_unique(self):
-        """Teste de hash único do conteúdo."""
+    def test_technical_note_document_hash_unique(self):
+        """Teste de hash único do documento."""
         # Arrange
-        content_hash = "unique_hash_123"
-        TechnicalNoteFactory(content_hash=content_hash)
+        document_hash = "unique_hash_123"
+        TechnicalNoteFactory(document_hash=document_hash)
 
         # Act & Assert
         with self.assertRaises(Exception):
-            TechnicalNoteFactory(content_hash=content_hash)
+            TechnicalNoteFactory(document_hash=document_hash)
 
-    def test_technical_note_metadata_default(self):
-        """Teste de metadata padrão."""
+    def test_technical_note_status_default(self):
+        """Teste de status padrão."""
         # Arrange & Act
         note = TechnicalNoteFactory()
 
         # Assert
-        self.assertIsInstance(note.metadata, dict)
+        self.assertEqual(note.status, "pending")
+
+    def test_technical_note_fields(self):
+        """Teste de campos principais do modelo."""
+        # Arrange & Act
+        note = TechnicalNoteFactory(
+            title="Test Technical Note",
+            original_url="http://example.com/note.pdf",
+            publication_date="2023-01-15",
+        )
+
+        # Assert
+        self.assertEqual(note.title, "Test Technical Note")
+        self.assertEqual(note.original_url, "http://example.com/note.pdf")
+        self.assertIsNotNone(note.publication_date)
+        self.assertIsNotNone(note.document_hash)
+        self.assertIsInstance(note.file_size, int)
+        self.assertIsNotNone(note.local_file_path)
 
 
 @tag("unit", "models", "fast")
@@ -121,52 +149,56 @@ class ProcessingLogModelTest(BaseUnitTestCase):
         """Teste de criação de log de processamento."""
         # Arrange & Act
         log = ProcessingLogFactory(
-            technical_note=self.technical_note, operation="analysis", status="completed"
+            technical_note=self.technical_note, operation="processing", level="info"
         )
 
         # Assert
-        self.assertEqual(log.operation, "analysis")
-        self.assertEqual(log.status, "completed")
         self.assertEqual(log.technical_note, self.technical_note)
+        self.assertEqual(log.operation, "processing")
+        self.assertEqual(log.level, "info")
+        self.assertIsInstance(log.message, str)
+        self.assertIsInstance(log.details, dict)
+        self.assertTrue(log.is_active)
 
     def test_processing_log_str_representation(self):
         """Teste da representação string do log."""
         # Arrange & Act
         log = ProcessingLogFactory(
-            technical_note=self.technical_note, operation="analysis", status="completed"
+            technical_note=self.technical_note, operation="processing", level="info"
         )
 
         # Assert
-        expected_str = f"analysis - completed"
+        expected_str = f"{log.operation.title()}: {log.message[:50]}..."
         self.assertEqual(str(log), expected_str)
 
-    def test_processing_log_duration_calculation(self):
-        """Teste de cálculo de duração."""
-        from datetime import datetime, timedelta
-
-        from django.utils import timezone
-
-        # Arrange
-        start_time = timezone.now()
-        end_time = start_time + timedelta(seconds=30)
-
-        log = ProcessingLogFactory(
-            technical_note=self.technical_note, start_time=start_time, end_time=end_time
-        )
-
-        # Act & Assert
-        if hasattr(log, "duration"):
-            self.assertEqual(log.duration, timedelta(seconds=30))
-
-    def test_processing_log_without_end_time(self):
-        """Teste de log sem tempo de fim."""
+    def test_processing_log_execution_time(self):
+        """Teste de tempo de execução."""
         # Arrange & Act
+        execution_time = 2.5
         log = ProcessingLogFactory(
-            technical_note=self.technical_note, start_time=timezone.now(), end_time=None
+            technical_note=self.technical_note,
+            operation="processing",
+            execution_time=execution_time,
         )
 
         # Assert
-        self.assertIsNone(log.end_time)
+        self.assertEqual(log.execution_time, execution_time)
+        self.assertIsInstance(log.execution_time, float)
+
+    def test_processing_log_details_field(self):
+        """Teste do campo details do log."""
+        # Arrange & Act
+        custom_details = {"step": "validation", "errors": 0, "warnings": 2}
+        log = ProcessingLogFactory(
+            technical_note=self.technical_note,
+            operation="validation",
+            details=custom_details,
+        )
+
+        # Assert
+        self.assertEqual(log.details, custom_details)
+        self.assertIn("step", log.details)
+        self.assertEqual(log.details["errors"], 0)
         # Duration should be None or handle gracefully
         if hasattr(log, "duration"):
             self.assertIsNone(log.duration)

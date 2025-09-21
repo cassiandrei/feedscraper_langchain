@@ -12,6 +12,15 @@ from tests.mocks.factories import DataSourceFactory, TechnicalNoteFactory
 
 from apps.jobs.schedulers import JobSchedulerService
 
+# Global variable to track test job execution
+_test_job_executions = []
+
+
+def simple_test_job():
+    """Simple test job that can be serialized."""
+    _test_job_executions.append({"executed_at": time.time()})
+    return {"status": "success", "message": "Test job executed"}
+
 
 @tag("integration", "jobs", "slow")
 class JobSchedulerIntegrationTest(BaseIntegrationTest):
@@ -35,12 +44,11 @@ class JobSchedulerIntegrationTest(BaseIntegrationTest):
 
     def test_scheduler_lifecycle_with_real_job(self):
         """Testa ciclo de vida completo do scheduler com job real."""
-        # Arrange
-        scheduler = self.scheduler_service.get_scheduler()
-        job_executed = []
+        # Arrange - Clear previous executions
+        global _test_job_executions
+        _test_job_executions.clear()
 
-        def test_job():
-            job_executed.append(True)
+        scheduler = self.scheduler_service.get_scheduler()
 
         # Act - Start scheduler
         self.scheduler_service.start()
@@ -48,7 +56,9 @@ class JobSchedulerIntegrationTest(BaseIntegrationTest):
 
         # Add job
         job = self.scheduler_service.add_job(
-            func=test_job, trigger="date", job_id="integration_test_job"
+            func="apps.jobs.tests.integration.test_job_flows:simple_test_job",
+            trigger="date",
+            job_id="integration_test_job",
         )
 
         # Verify job was added

@@ -2,6 +2,7 @@
 Factories para criação de dados de teste.
 """
 
+import random
 from datetime import date, timedelta
 
 import factory
@@ -64,7 +65,7 @@ class ProcessingLogFactory(DjangoModelFactory):
     details = factory.LazyFunction(
         lambda: {
             "success": True,
-            "processed_items": factory.Faker("random_int", min=1, max=100)._generate(),
+            "processed_items": random.randint(1, 100),
         }
     )
     execution_time = factory.Faker("pyfloat", min_value=0.1, max_value=5.0)
