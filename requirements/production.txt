@@ -1,0 +1,18 @@
+# Inherit from base requirements
+-r base.txt
+
+# Production web server
+gunicorn>=21.2.0
+whitenoise>=6.6.0
+
+# Production database optimization
+psycopg2>=2.9.9
+
+# Monitoring and logging
+sentry-sdk>=1.40.0
+
+# Security
+django-ratelimit>=4.1.0
+
+# Performance
+django-cache-machine>=1.2.0
