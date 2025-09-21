@@ -1,0 +1,16 @@
+{
+    "python.testing.pytestArgs": [
+        ".",
+        "-n",
+        "16",
+        "--tb=short"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+
+    "python.pythonPath": ".venv/bin/python",  // Ajuste conforme o caminho para o seu interpretador
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintPath": ".venv/bin/pylint",
+    "python.analysis.autoImportCompletions": true, // Ajuste conforme o caminho para o seu linter
+}
