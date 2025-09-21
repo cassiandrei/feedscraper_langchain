@@ -1,0 +1,157 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django Runserver",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "runserver",
+                "127.0.0.1:8000"
+            ],
+            "django": true,
+            "autoStartBrowser": false,
+            "autoReload": {
+                "enable": true
+            },
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Django Runserver (Custom Port)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "runserver",
+                "0.0.0.0:8080"
+            ],
+            "django": true,
+            "autoStartBrowser": false,
+            "autoReload": {
+                "enable": true
+            },
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Django Shell",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "shell"
+            ],
+            "django": true,
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Django Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "test"
+            ],
+            "django": true,
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Setup Jobs",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "start_jobs",
+                "--setup-only"
+            ],
+            "django": true,
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Start Jobs (Interactive)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "start_jobs"
+            ],
+            "django": true,
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Run Scraping Job",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "start_jobs",
+                "--run",
+                "scraping"
+            ],
+            "django": true,
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Run Processing Job",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "start_jobs",
+                "--run",
+                "processing"
+            ],
+            "django": true,
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "config.settings.development"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
+        {
+            "name": "Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        }
+    ]
+}

@@ -6,7 +6,6 @@ from django.utils import timezone
 
 from apps.jobs.schedulers import JobSchedulerService
 from apps.jobs.tasks import (
-    nfe_fazenda_full_pipeline_job,
     process_pending_technical_notes_job,
     scrape_nfe_fazenda_job,
 )
@@ -30,7 +29,6 @@ class NFEJobManager:
     # IDs dos jobs para controle
     SCRAPING_JOB_ID = "nfe_fazenda_scraping"
     PROCESSING_JOB_ID = "nfe_technical_notes_processing"
-    FULL_PIPELINE_JOB_ID = "nfe_full_pipeline"
 
     def __init__(self):
         """Inicializa o gerenciador de jobs NFE."""
@@ -46,7 +44,6 @@ class NFEJobManager:
         results = {
             "scraping_job": None,
             "processing_job": None,
-            "full_pipeline_job": None,
             "errors": [],
         }
 
@@ -63,7 +60,6 @@ class NFEJobManager:
                     hour=9,
                     minute=0,
                     name="NFE Fazenda - Scraping Diário",
-                    description="Coleta diária de novas notas técnicas do site da NFE Fazenda",
                     max_instances=1,
                     coalesce=True,
                 )
@@ -85,7 +81,6 @@ class NFEJobManager:
                     hour="8-18/2",  # A cada 2 horas das 8h às 18h
                     minute=15,
                     name="NFE Fazenda - Processamento IA",
-                    description="Processamento de notas técnicas pendentes com LangChain",
                     max_instances=1,
                     coalesce=True,
                     kwargs={"max_items": 15},
@@ -100,31 +95,6 @@ class NFEJobManager:
                 logger.error(error_msg)
                 results["errors"].append(error_msg)
                 results["processing_job"] = "error"
-
-            # 3. Job de pipeline completo (semanal - domingo às 6h)
-            try:
-                self.scheduler.add_job(
-                    func=nfe_fazenda_full_pipeline_job,
-                    trigger="cron",
-                    job_id=self.FULL_PIPELINE_JOB_ID,
-                    day_of_week=6,  # Domingo
-                    hour=6,
-                    minute=0,
-                    name="NFE Fazenda - Pipeline Completo",
-                    description="Pipeline completo: scraping + processamento semanal",
-                    max_instances=1,
-                    coalesce=True,
-                )
-                results["full_pipeline_job"] = "configured"
-                logger.info(
-                    f"Job de pipeline completo configurado: {self.FULL_PIPELINE_JOB_ID}"
-                )
-
-            except Exception as e:
-                error_msg = f"Erro ao configurar job de pipeline: {str(e)}"
-                logger.error(error_msg)
-                results["errors"].append(error_msg)
-                results["full_pipeline_job"] = "error"
 
             success_count = sum(
                 1 for result in results.values() if result == "configured"
@@ -184,26 +154,6 @@ class NFEJobManager:
                 "timestamp": timezone.now().isoformat(),
             }
 
-    def run_full_pipeline_now(self) -> Dict[str, Any]:
-        """
-        Executa o pipeline completo imediatamente.
-
-        Returns:
-            Dict com resultado da execução
-        """
-        try:
-            logger.info("Executando pipeline completo manual")
-            result = nfe_fazenda_full_pipeline_job()
-            logger.info(f"Pipeline completo manual concluído: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"Erro no pipeline completo manual: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": timezone.now().isoformat(),
-            }
-
     def get_job_status(self) -> Dict[str, Any]:
         """
         Retorna o status de todos os jobs NFE.
@@ -218,7 +168,6 @@ class NFEJobManager:
             job_ids = [
                 self.SCRAPING_JOB_ID,
                 self.PROCESSING_JOB_ID,
-                self.FULL_PIPELINE_JOB_ID,
             ]
 
             for job_id in job_ids:
@@ -314,7 +263,6 @@ class NFEJobManager:
         job_ids = [
             self.SCRAPING_JOB_ID,
             self.PROCESSING_JOB_ID,
-            self.FULL_PIPELINE_JOB_ID,
         ]
 
         for job_id in job_ids:
