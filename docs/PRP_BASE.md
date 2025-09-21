@@ -15,7 +15,100 @@ Este template PRP serve como guia base para desenvolvimento de aplicações Djan
 - **AI/ML Framework**: LangChain (Python)
 - **Job Scheduler**: django-apscheduler + APScheduler 4.0+
 - **Database**: PostgreSQL (recomendado) / SQLite (desenvolvimento)
-- **Python Version**: 3.11+
+- **Python Version**: 3.12+
+- **Environment Management**: django-environ
+
+---
+
+## 📦 Dependências e Requirements
+
+### Estrutura de Requirements
+
+```
+requirements/
+├── base.txt          # Dependências essenciais
+├── development.txt   # Dependências de desenvolvimento
+└── production.txt    # Dependências de produção
+```
+
+### requirements/base.txt
+
+```txt
+# Core Django
+Django>=5.2,<5.3
+djangorestframework>=3.15.0
+django-cors-headers>=4.3.0
+django-environ>=0.10.0
+
+# Database
+psycopg2-binary>=2.9.0
+dj-database-url>=2.1.0
+
+# LangChain
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-openai>=0.1.0
+langchain-community>=0.2.0
+
+# Job Scheduling
+APScheduler>=4.0.0
+django-apscheduler>=0.6.2
+
+# HTTP Requests
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Date and Time
+python-dateutil>=2.8.0
+pytz>=2023.3
+
+# Validation
+pydantic>=2.7.0
+
+# Caching
+redis>=5.0.0
+```
+
+### requirements/development.txt
+
+```txt
+-r base.txt
+
+# Testing
+pytest>=7.4.0
+pytest-django>=4.5.2
+pytest-cov>=4.1.0
+factory-boy>=3.3.0
+
+# Code Quality
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Debug
+django-debug-toolbar>=4.2.0
+ipdb>=0.13.13
+
+# Documentation
+sphinx>=7.1.0
+```
+
+### requirements/production.txt
+
+```txt
+-r base.txt
+
+# Production Server
+gunicorn>=21.2.0
+whitenoise>=6.5.0
+
+# Monitoring
+sentry-sdk>=1.32.0
+
+# Environment
+python-dotenv>=1.0.0
+```
 
 ---
 
@@ -90,24 +183,32 @@ projeto/
 
 ```python
 import os
+import environ
 from pathlib import Path
-from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-def get_env_variable(var_name):
-    """Get the environment variable or return exception."""
-    try:
-        return os.environ[var_name]
-    except KeyError:
-        error_msg = f"Set the {var_name} environment variable"
-        raise ImproperlyConfigured(error_msg)
+# Inicializar django-environ
+env = environ.Env(
+    DEBUG=(bool, False),
+    SECRET_KEY=(str, 'django-insecure-change-in-production'),
+    ALLOWED_HOSTS=(list, []),
+    DATABASE_URL=(str, f'sqlite:///{BASE_DIR}/db.sqlite3'),
+    OPENAI_API_KEY=(str, ''),
+    LANGCHAIN_TRACING_V2=(bool, False),
+    LANGCHAIN_API_KEY=(str, ''),
+    LANGCHAIN_PROJECT=(str, 'feedscraper-langchain'),
+    REDIS_URL=(str, 'redis://localhost:6379/0'),
+)
+
+# Ler arquivo .env
+environ.Env.read_env(BASE_DIR / '.env')
 
 # Security
-SECRET_KEY = get_env_variable('SECRET_KEY')
-DEBUG = False
-ALLOWED_HOSTS = []
+SECRET_KEY = env('SECRET_KEY')
+DEBUG = env('DEBUG')
+ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 
 # Application definition
 DJANGO_APPS = [
@@ -148,15 +249,20 @@ ROOT_URLCONF = 'config.urls'
 
 # Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': get_env_variable('DATABASE_NAME'),
-        'USER': get_env_variable('DATABASE_USER'),
-        'PASSWORD': get_env_variable('DATABASE_PASSWORD'),
-        'HOST': get_env_variable('DATABASE_HOST'),
-        'PORT': get_env_variable('DATABASE_PORT'),
-    }
+    'default': env.db()  # Usa DATABASE_URL automaticamente
 }
+
+# Alternativa para configuração manual:
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': env('DB_NAME'),
+#         'USER': env('DB_USER'),
+#         'PASSWORD': env('DB_PASSWORD'),
+#         'HOST': env('DB_HOST', default='localhost'),
+#         'PORT': env('DB_PORT', default='5432'),
+#     }
+# }
 
 # Internationalization
 LANGUAGE_CODE = 'pt-br'
@@ -168,19 +274,15 @@ USE_TZ = True
 SCHEDULER_CONFIG = {
     'apscheduler.jobstores.default': {
         'type': 'sqlalchemy',
-        'url': f'postgresql://{get_env_variable("DATABASE_USER")}:'
-               f'{get_env_variable("DATABASE_PASSWORD")}@'
-               f'{get_env_variable("DATABASE_HOST")}:'
-               f'{get_env_variable("DATABASE_PORT")}/'
-               f'{get_env_variable("DATABASE_NAME")}'
+        'url': env('DATABASE_URL')  # Usa a mesma URL do banco
     },
     'apscheduler.executors.default': {
         'type': 'threadpool',
-        'max_workers': 10,
+        'max_workers': env.int('SCHEDULER_MAX_WORKERS', default=10),
     },
     'apscheduler.executors.processpool': {
         'type': 'processpool',
-        'max_workers': 5,
+        'max_workers': env.int('SCHEDULER_PROCESS_WORKERS', default=5),
     },
     'apscheduler.job_defaults.coalesce': 'false',
     'apscheduler.job_defaults.max_instances': '3',
@@ -189,15 +291,24 @@ SCHEDULER_CONFIG = {
 
 # LangChain Configuration
 LANGCHAIN_CONFIG = {
-    'OPENAI_API_KEY': get_env_variable('OPENAI_API_KEY'),
-    'LANGCHAIN_TRACING_V2': get_env_variable('LANGCHAIN_TRACING_V2'),
-    'LANGCHAIN_API_KEY': get_env_variable('LANGCHAIN_API_KEY'),
-    'LANGCHAIN_PROJECT': get_env_variable('LANGCHAIN_PROJECT'),
-    'DEFAULT_TEMPERATURE': 0.7,
-    'DEFAULT_MODEL': 'gpt-4-turbo-preview',
-    'MAX_TOKENS': 4096,
-    'TIMEOUT': 30,
+    'OPENAI_API_KEY': env('OPENAI_API_KEY'),
+    'DEFAULT_TEMPERATURE': env.float('LANGCHAIN_TEMPERATURE', default=0.7),
+    'DEFAULT_MODEL': env('LANGCHAIN_MODEL', default='gpt-4-turbo-preview'),
+    'MAX_TOKENS': env.int('LANGCHAIN_MAX_TOKENS', default=4096),
+    'TIMEOUT': env.int('LANGCHAIN_TIMEOUT', default=30),
 }
+
+# LangSmith Configuration (Optional - for monitoring and debugging)
+if env.bool('LANGCHAIN_TRACING_V2', default=False):
+    LANGCHAIN_CONFIG.update({
+        'LANGCHAIN_TRACING_V2': True,
+        'LANGCHAIN_API_KEY': env('LANGCHAIN_API_KEY'),
+        'LANGCHAIN_PROJECT': env('LANGCHAIN_PROJECT', default='feedscraper-langchain'),
+        'LANGCHAIN_ENDPOINT': env('LANGCHAIN_ENDPOINT', default='https://api.smith.langchain.com'),
+    })
+
+# Set environment variables for LangChain
+os.environ.update({key: str(value) for key, value in LANGCHAIN_CONFIG.items()})
 
 # Logging
 LOGGING = {
@@ -919,24 +1030,56 @@ class TestLangChainJobIntegration(TransactionTestCase):
 
 ```bash
 # .env.example
-SECRET_KEY=your-secret-key-here
-DEBUG=False
 
-# Database
-DATABASE_NAME=feedscraper_db
-DATABASE_USER=postgres
-DATABASE_PASSWORD=your-password
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
+# Django Configuration
+SECRET_KEY=django-insecure-change-me-in-production
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
 
-# LangChain
-OPENAI_API_KEY=sk-your-openai-api-key
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_API_KEY=your-langsmith-api-key
-LANGCHAIN_PROJECT=feedscraper-project
+# Database Configuration
+# Para desenvolvimento (SQLite)
+DATABASE_URL=sqlite:///db.sqlite3
 
-# Redis (for production job store)
+# Para produção (PostgreSQL)
+# DATABASE_URL=postgresql://user:password@host:port/database
+
+# LangChain Configuration
+OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# Optional: LangSmith for monitoring and debugging
+# LANGCHAIN_TRACING_V2=true
+# LANGCHAIN_API_KEY=your-langsmith-api-key-here
+# LANGCHAIN_PROJECT=feedscraper-langchain
+# LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+
+# LangChain Settings
+LANGCHAIN_TEMPERATURE=0.7
+LANGCHAIN_MODEL=gpt-4-turbo-preview
+LANGCHAIN_MAX_TOKENS=4096
+LANGCHAIN_TIMEOUT=30
+
+# APScheduler Configuration
+SCHEDULER_MAX_WORKERS=10
+SCHEDULER_PROCESS_WORKERS=5
+
+# Redis Configuration (for production job store)
 REDIS_URL=redis://localhost:6379/0
+
+# Email Configuration (for production)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:3000
+
+# Logging
+LOG_LEVEL=INFO
+
+# Security (production only)
+SECURE_SSL_REDIRECT=false
+SECURE_HSTS_SECONDS=0
 ```
 
 ### Security Middleware
@@ -1227,20 +1370,116 @@ class JobEventPublisher:
 
 ---
 
-## 📝 Notas Finais
+## � Exemplo de Uso
+
+### Script de Demonstração (exemplo_uso.py)
+
+Para facilitar o teste e demonstração das funcionalidades, recomenda-se criar um arquivo `exemplo_uso.py` na raiz do projeto:
+
+```python
+#!/usr/bin/env python
+"""
+Exemplo de uso do projeto Django + LangChain + Jobs
+
+Este script demonstra como usar os services e agendar jobs.
+"""
+
+import os
+import sys
+import django
+
+# Configurar Django
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
+django.setup()
+
+from apps.langchain_integration.services.text_processor import TextProcessorService, TextSummarizerService
+from apps.jobs.schedulers import JobSchedulerService
+from apps.jobs.tasks import process_text_job, summarize_text_job
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def exemplo_processamento_texto():
+    """Exemplo de processamento de texto com LangChain."""
+    logger.info("=== Exemplo: Processamento de Texto ===")
+    
+    service = TextProcessorService(
+        template="Analise o seguinte texto e extraia os pontos principais: {text}"
+    )
+    
+    texto = "Texto de exemplo para processamento..."
+    resultado = service.process({'text': texto})
+    
+    if resultado['success']:
+        logger.info(f"Resultado: {resultado['result']}")
+    else:
+        logger.error(f"Erro: {resultado['error']}")
+
+def exemplo_job_agendado():
+    """Exemplo de agendamento de job."""
+    logger.info("=== Exemplo: Job Agendado ===")
+    
+    try:
+        JobSchedulerService.start()
+        
+        # Agendar job para processar texto a cada 5 minutos
+        JobSchedulerService.add_job(
+            func='apps.jobs.tasks.process_text_job',  # Referência textual
+            trigger='interval',
+            job_id='exemplo_processamento',
+            minutes=5,
+            args=["Texto de exemplo", "Template de exemplo"]
+        )
+        
+        jobs = JobSchedulerService.list_jobs()
+        logger.info(f"Jobs agendados: {len(jobs)}")
+        
+    except Exception as e:
+        logger.error(f"Erro ao agendar jobs: {str(e)}")
+
+if __name__ == "__main__":
+    exemplo_processamento_texto()
+    exemplo_job_agendado()
+```
+
+### Comandos de Teste
+
+```bash
+# Executar exemplo de uso
+python docs/exemplo_uso.py
+
+# Testar configurações Django
+python manage.py check
+
+# Executar testes
+python manage.py test
+
+# Iniciar servidor de desenvolvimento
+python manage.py runserver
+```
+
+---
+
+## �📝 Notas Finais
 
 Este PRP template serve como guia base para projetos Django + LangChain + Jobs agendados. Adapte conforme as necessidades específicas do seu projeto, mantendo sempre os princípios de arquitetura limpa, testabilidade e manutenibilidade.
 
 ### Próximos Passos
-1. Personalizar configurações conforme necessidade
-2. Implementar casos de uso específicos
-3. Adicionar integrações adicionais
-4. Configurar pipeline de deploy
-5. Implementar monitoramento avançado
+1. **Configurar ambiente**: Copiar `.env.example` para `.env` e configurar variáveis
+2. **Executar exemplo**: Testar funcionalidades com `python exemplo_uso.py`
+3. **Criar README.md**: Documentar instruções específicas do projeto
+4. Personalizar configurações conforme necessidade
+5. Implementar casos de uso específicos
+6. Adicionar integrações adicionais
+7. Configurar pipeline de deploy
+8. Implementar monitoramento avançado
 
 ---
 
-**Versão**: 1.0  
+**Versão**: 1.1  
 **Data**: 20 de setembro de 2025  
 **Autor**: Sistema de IA  
-**Licença**: MIT
+**Licença**: MIT  
+**Status**: Atualizado com implementação real
