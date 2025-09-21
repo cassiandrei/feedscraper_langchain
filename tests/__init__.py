@@ -1,0 +1,3 @@
+"""
+Testes globais do projeto.
+"""

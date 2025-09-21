@@ -74,24 +74,63 @@ redis>=5.0.0
 ```txt
 -r base.txt
 
-# Testing
+# Testing Framework
 pytest>=7.4.0
 pytest-django>=4.5.2
 pytest-cov>=4.1.0
+pytest-mock>=3.11.0
 factory-boy>=3.3.0
+faker>=19.3.0
+
+# Alternative: Django's built-in testing
+# coverage>=7.2.0  # Se usar unittest ao invés de pytest
 
 # Code Quality
 black>=23.7.0
 isort>=5.12.0
 flake8>=6.0.0
 mypy>=1.5.0
+pre-commit>=3.3.0
 
-# Debug
+# Debug & Development
 django-debug-toolbar>=4.2.0
 ipdb>=0.13.13
+django-extensions>=3.2.0
 
 # Documentation
 sphinx>=7.1.0
+sphinx-rtd-theme>=1.3.0
+```
+
+### requirements/testing.txt
+
+```txt
+-r base.txt
+
+# Core testing dependencies
+pytest>=7.4.0
+pytest-django>=4.5.2
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+pytest-xdist>=3.3.0        # Parallel test execution
+pytest-sugar>=0.9.7        # Better test output
+pytest-clarity>=1.0.1      # Better assertion output
+
+# Test data and factories  
+factory-boy>=3.3.0
+faker>=19.3.0
+
+# Coverage and reporting
+coverage>=7.2.0
+coverage[toml]>=7.2.0
+
+# Mock and stub utilities
+responses>=0.23.0          # HTTP requests mocking
+freezegun>=1.2.0          # Time/datetime mocking
+testfixtures>=7.1.0       # Additional test utilities
+
+# Performance testing (optional)
+pytest-benchmark>=4.0.0   # Performance regression testing
 ```
 
 ### requirements/production.txt
@@ -122,6 +161,7 @@ projeto/
 ├── requirements/
 │   ├── base.txt
 │   ├── development.txt
+│   ├── testing.txt
 │   └── production.txt
 ├── config/
 │   ├── __init__.py
@@ -129,6 +169,7 @@ projeto/
 │   │   ├── __init__.py
 │   │   ├── base.py
 │   │   ├── development.py
+│   │   ├── testing.py
 │   │   └── production.py
 │   ├── urls.py
 │   ├── wsgi.py
@@ -153,6 +194,14 @@ projeto/
 │   │   ├── tasks.py
 │   │   ├── views.py
 │   │   └── tests/
+│   │       ├── __init__.py
+│   │       ├── unit/
+│   │       │   ├── test_models.py
+│   │       │   ├── test_tasks.py
+│   │       │   └── test_schedulers.py
+│   │       └── integration/
+│   │           ├── test_job_flows.py
+│   │           └── test_scheduler_integration.py
 │   ├── langchain_integration/
 │   │   ├── __init__.py
 │   │   ├── chains/
@@ -161,6 +210,13 @@ projeto/
 │   │   ├── prompts/
 │   │   ├── services/
 │   │   └── tests/
+│   │       ├── __init__.py
+│   │       ├── unit/
+│   │       │   ├── test_services.py
+│   │       │   └── test_models.py
+│   │       └── integration/
+│   │           ├── test_langchain_flows.py
+│   │           └── test_api_endpoints.py
 │   └── [outras_apps]/
 ├── infrastructure/
 │   ├── __init__.py
@@ -170,9 +226,28 @@ projeto/
 │   └── external_apis/
 └── tests/
     ├── __init__.py
-    ├── integration/
-    ├── unit/
-    └── fixtures/
+    ├── conftest.py              # Configurações pytest (se usado)
+    ├── base.py                  # Base classes para testes
+    ├── unit/                    # Testes unitários globais
+    │   ├── __init__.py
+    │   ├── test_core_utils.py
+    │   └── test_core_models.py
+    ├── integration/             # Testes de integração entre apps
+    │   ├── __init__.py
+    │   ├── test_jobs_langchain.py
+    │   └── test_complete_workflows.py
+    ├── functional/              # Testes funcionais/E2E
+    │   ├── __init__.py
+    │   ├── test_api_workflows.py
+    │   └── test_user_journeys.py
+    ├── fixtures/                # Dados para testes
+    │   ├── test_data.json
+    │   └── sample_files/
+    │       └── example.txt
+    └── mocks/                   # Factories e mocks
+        ├── __init__.py
+        ├── factories.py
+        └── mock_services.py
 ```
 
 ---
@@ -1024,7 +1099,591 @@ class TestLangChainJobIntegration(TransactionTestCase):
 
 ---
 
-## 🔒 Boas Práticas de Segurança
+## � Organização e Separação de Testes Django
+
+### 🧪 Estrutura Recomendada de Testes
+
+#### Organização por Tipo de Teste
+
+```
+tests/
+├── __init__.py
+├── unit/                    # Testes Unitários (isolados)
+│   ├── __init__.py
+│   ├── test_models.py
+│   ├── test_services.py
+│   ├── test_utils.py
+│   └── test_tasks.py
+├── integration/             # Testes de Integração (componentes)
+│   ├── __init__.py
+│   ├── test_api_views.py
+│   ├── test_scheduler.py
+│   └── test_langchain_flows.py
+├── functional/              # Testes Funcionais (end-to-end)
+│   ├── __init__.py
+│   ├── test_workflows.py
+│   └── test_user_journeys.py
+├── fixtures/                # Dados para testes
+│   ├── test_data.json
+│   └── sample_files/
+├── mocks/                   # Mocks e factories
+│   ├── __init__.py
+│   ├── factories.py
+│   └── mock_services.py
+└── conftest.py             # Configurações do pytest (se usado)
+```
+
+### 🔬 Testes Unitários - Django TestCase
+
+#### Características dos Testes Unitários:
+- **Isolados**: Testam uma única unidade de código
+- **Rápidos**: Executam em milissegundos
+- **Não dependem**: De banco de dados real, APIs externas, sistema de arquivos
+- **Mocking**: Usam mocks para dependências externas
+
+```python
+# tests/unit/test_models.py
+from django.test import TestCase
+from django.core.exceptions import ValidationError
+from unittest.mock import Mock, patch
+from apps.jobs.models import JobExecution
+
+class JobExecutionModelTest(TestCase):
+    """Testes unitários para o modelo JobExecution."""
+    
+    def test_job_execution_str_representation(self):
+        """Testa a representação string do modelo."""
+        # Arrange
+        job = JobExecution(
+            job_id='test-job',
+            status='completed',
+            result={'success': True}
+        )
+        
+        # Act
+        str_repr = str(job)
+        
+        # Assert
+        self.assertEqual(str_repr, 'test-job - completed')
+    
+    def test_duration_property(self):
+        """Testa o cálculo da propriedade duration."""
+        from datetime import datetime, timedelta
+        
+        # Arrange
+        start_time = datetime.now()
+        end_time = start_time + timedelta(seconds=10)
+        
+        job = JobExecution(
+            job_id='test-job',
+            start_time=start_time,
+            end_time=end_time
+        )
+        
+        # Act & Assert
+        self.assertEqual(job.duration, timedelta(seconds=10))
+    
+    def test_validation_error_for_invalid_status(self):
+        """Testa validação de status inválido."""
+        # Arrange
+        job = JobExecution(
+            job_id='test-job',
+            status='invalid_status'
+        )
+        
+        # Act & Assert
+        with self.assertRaises(ValidationError):
+            job.full_clean()
+
+
+# tests/unit/test_services.py
+from unittest.mock import Mock, patch, MagicMock
+from django.test import TestCase
+from apps.langchain_integration.services.text_processor import TextProcessorService
+
+class TextProcessorServiceTest(TestCase):
+    """Testes unitários para TextProcessorService."""
+    
+    @patch('apps.langchain_integration.services.text_processor.ChatOpenAI')
+    def test_build_chain_creates_correct_components(self, mock_chat_openai):
+        """Testa se a chain é construída corretamente."""
+        # Arrange
+        service = TextProcessorService(template="Process: {text}")
+        
+        # Act
+        chain = service.build_chain()
+        
+        # Assert
+        self.assertIsNotNone(chain)
+        mock_chat_openai.assert_called_once()
+    
+    @patch('apps.langchain_integration.services.text_processor.ChatOpenAI')
+    def test_process_handles_chain_exception(self, mock_chat_openai):
+        """Testa tratamento de exceção na chain."""
+        # Arrange
+        service = TextProcessorService()
+        mock_chat_openai.return_value.invoke.side_effect = Exception("Chain error")
+        
+        input_data = {'text': 'test'}
+        
+        # Act
+        result = service.process(input_data)
+        
+        # Assert
+        self.assertFalse(result['success'])
+        self.assertIn('Chain error', result['error'])
+        self.assertEqual(result['input'], input_data)
+
+
+# tests/unit/test_utils.py
+from django.test import SimpleTestCase  # SimpleTestCase para utilitários sem DB
+from unittest.mock import patch, mock_open
+from core.utils.logging import setup_logger
+
+class LoggingUtilsTest(SimpleTestCase):
+    """Testes unitários para utilitários de logging."""
+    
+    @patch('core.utils.logging.logging.getLogger')
+    def test_setup_logger_with_default_config(self, mock_get_logger):
+        """Testa configuração padrão do logger."""
+        # Arrange
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+        
+        # Act
+        logger = setup_logger('test_logger')
+        
+        # Assert
+        self.assertEqual(logger, mock_logger)
+        mock_get_logger.assert_called_once_with('test_logger')
+    
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('core.utils.logging.os.path.exists')
+    def test_setup_logger_creates_log_directory(self, mock_exists, mock_file):
+        """Testa criação de diretório de logs."""
+        # Arrange
+        mock_exists.return_value = False
+        
+        # Act
+        setup_logger('test_logger', log_file='logs/test.log')
+        
+        # Assert
+        mock_exists.assert_called()
+```
+
+### 🔧 Testes de Integração - Django TransactionTestCase
+
+#### Características dos Testes de Integração:
+- **Múltiplos componentes**: Testam interação entre partes do sistema
+- **Banco de dados real**: Usam transações reais quando necessário
+- **APIs externas mockadas**: Mantêm controle sobre dependências externas
+- **Fluxos completos**: Testam workflows end-to-end
+
+```python
+# tests/integration/test_scheduler_integration.py
+from django.test import TransactionTestCase
+from django.test.utils import override_settings
+from unittest.mock import patch, Mock
+import time
+import threading
+from apps.jobs.schedulers import JobSchedulerService
+from apps.jobs.models import JobExecution
+
+@override_settings(
+    DATABASES={
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+)
+class SchedulerIntegrationTest(TransactionTestCase):
+    """Testes de integração para o sistema de agendamento."""
+    
+    def setUp(self):
+        """Configuração para testes de integração."""
+        self.scheduler_service = JobSchedulerService()
+    
+    def tearDown(self):
+        """Limpeza após testes de integração."""
+        if hasattr(self, 'scheduler_service'):
+            self.scheduler_service.shutdown()
+    
+    @patch('apps.jobs.tasks.TextProcessorService')
+    def test_job_execution_flow_with_database_persistence(self, mock_service):
+        """Testa fluxo completo de execução de job com persistência."""
+        # Arrange
+        mock_service_instance = Mock()
+        mock_service.return_value = mock_service_instance
+        mock_service_instance.process.return_value = {
+            'success': True,
+            'result': 'Processed text'
+        }
+        
+        # Act
+        scheduler = self.scheduler_service.get_scheduler()
+        job_id = 'integration_test_job'
+        
+        # Adiciona job ao scheduler
+        job = scheduler.add_job(
+            func='apps.jobs.tasks.process_text_job',
+            args=['test text', 'template'],
+            trigger='date',
+            id=job_id
+        )
+        
+        # Inicia scheduler e aguarda execução
+        scheduler.start()
+        time.sleep(2)  # Aguarda execução
+        
+        # Assert
+        # Verifica se o job foi persistido no banco
+        job_execution = JobExecution.objects.filter(job_id=job_id).first()
+        self.assertIsNotNone(job_execution)
+        self.assertEqual(job_execution.status, 'completed')
+    
+    def test_concurrent_job_execution(self):
+        """Testa execução concorrente de múltiplos jobs."""
+        # Arrange
+        scheduler = self.scheduler_service.get_scheduler()
+        executed_jobs = []
+        
+        def test_job(job_name):
+            executed_jobs.append(job_name)
+            time.sleep(0.1)  # Simula processamento
+        
+        # Act
+        scheduler.start()
+        
+        # Adiciona múltiplos jobs
+        for i in range(5):
+            scheduler.add_job(
+                func=test_job,
+                args=[f'job_{i}'],
+                trigger='date',
+                id=f'concurrent_job_{i}'
+            )
+        
+        # Aguarda execução de todos os jobs
+        time.sleep(2)
+        
+        # Assert
+        self.assertEqual(len(executed_jobs), 5)
+        self.assertTrue(all(f'job_{i}' in executed_jobs for i in range(5)))
+
+
+# tests/integration/test_langchain_job_integration.py
+from django.test import TransactionTestCase
+from django.test.utils import override_settings
+from unittest.mock import patch, Mock
+from apps.jobs.tasks import process_text_job
+from apps.langchain_integration.models import ProcessingResult
+
+class LangChainJobIntegrationTest(TransactionTestCase):
+    """Testes de integração entre LangChain e sistema de jobs."""
+    
+    @override_settings(
+        LANGCHAIN_CONFIG={
+            'OPENAI_API_KEY': 'test-key',
+            'DEFAULT_MODEL': 'gpt-3.5-turbo',
+            'DEFAULT_TEMPERATURE': 0.7,
+        }
+    )
+    @patch('langchain_openai.ChatOpenAI')
+    def test_full_text_processing_workflow(self, mock_chat_openai):
+        """Testa workflow completo de processamento de texto."""
+        # Arrange
+        mock_llm = Mock()
+        mock_chat_openai.return_value = mock_llm
+        mock_response = Mock()
+        mock_response.content = "Texto processado com sucesso"
+        mock_llm.invoke.return_value = mock_response
+        
+        input_text = "Texto para processar"
+        template = "Processe este texto: {text}"
+        
+        # Act
+        result = process_text_job(input_text, template)
+        
+        # Assert
+        self.assertTrue(result['success'])
+        self.assertIn('Texto processado com sucesso', result['result'])
+        
+        # Verifica se o resultado foi persistido (se aplicável)
+        # processing_results = ProcessingResult.objects.filter(
+        #     input_text=input_text
+        # )
+        # self.assertTrue(processing_results.exists())
+    
+    @patch('langchain_openai.ChatOpenAI')
+    def test_error_handling_in_integration_flow(self, mock_chat_openai):
+        """Testa tratamento de erros no fluxo de integração."""
+        # Arrange
+        mock_chat_openai.side_effect = Exception("API Error")
+        
+        # Act
+        result = process_text_job("test text")
+        
+        # Assert
+        self.assertFalse(result['success'])
+        self.assertIn('API Error', result['error'])
+```
+
+### 🎯 Melhores Práticas para Separação de Testes
+
+#### 1. **Nomenclatura e Organização**
+
+```python
+# Convenções de nomenclatura
+class TestNomeDoComponente(TestCase):           # Testes unitários
+class NomeDoComponenteIntegrationTest(TransactionTestCase):  # Testes de integração
+class NomeDoWorkflowE2ETest(LiveServerTestCase):            # Testes funcionais
+
+# Métodos de teste
+def test_should_return_success_when_valid_input(self):      # Unitário
+def test_integration_between_scheduler_and_database(self):  # Integração
+def test_complete_user_workflow_from_api_to_result(self):   # Funcional
+```
+
+#### 2. **Tags para Seleção de Testes**
+
+```python
+# tests/unit/test_models.py
+from django.test import TestCase, tag
+
+@tag('unit', 'models', 'fast')
+class JobModelTest(TestCase):
+    """Testes unitários rápidos para modelos."""
+    pass
+
+@tag('integration', 'scheduler', 'slow')
+class SchedulerIntegrationTest(TransactionTestCase):
+    """Testes de integração mais lentos."""
+    pass
+
+@tag('e2e', 'api', 'slow')
+class APIWorkflowTest(LiveServerTestCase):
+    """Testes end-to-end completos."""
+    pass
+```
+
+#### 3. **Comandos para Executar Testes por Categoria**
+
+```bash
+# Executar apenas testes unitários (rápidos)
+python manage.py test --tag=unit
+
+# Executar testes de integração
+python manage.py test --tag=integration
+
+# Executar testes end-to-end
+python manage.py test --tag=e2e
+
+# Executar testes rápidos (unitários + alguns de integração)
+python manage.py test --tag=fast
+
+# Executar todos exceto os lentos
+python manage.py test --exclude-tag=slow
+
+# Executar testes específicos por app
+python manage.py test apps.jobs.tests.unit
+python manage.py test apps.langchain_integration.tests.integration
+
+# Executar com coverage
+coverage run --source='.' manage.py test --tag=unit
+coverage run --append --source='.' manage.py test --tag=integration
+coverage report -m
+coverage html
+```
+
+#### 4. **Factories para Criação de Dados de Teste**
+
+```python
+# tests/mocks/factories.py
+import factory
+from factory.django import DjangoModelFactory
+from factory.fuzzy import FuzzyText, FuzzyChoice
+from django.utils import timezone
+from apps.jobs.models import JobExecution
+
+class JobExecutionFactory(DjangoModelFactory):
+    """Factory para criar instâncias de JobExecution."""
+    
+    class Meta:
+        model = JobExecution
+    
+    job_id = factory.Sequence(lambda n: f"test-job-{n}")
+    status = FuzzyChoice(['pending', 'running', 'completed', 'failed'])
+    start_time = factory.LazyFunction(timezone.now)
+    end_time = factory.LazyFunction(timezone.now)
+    result = factory.Dict({
+        'success': True,
+        'message': factory.Faker('sentence'),
+        'data': factory.Dict({
+            'processed_items': factory.Faker('random_int', min=1, max=100),
+            'duration': factory.Faker('random_int', min=1, max=3600)
+        })
+    })
+    
+    @factory.post_generation
+    def set_end_time_after_start(obj, create, extracted, **kwargs):
+        """Garante que end_time é posterior ao start_time."""
+        if create and obj.start_time:
+            from datetime import timedelta
+            obj.end_time = obj.start_time + timedelta(seconds=30)
+            obj.save()
+
+# Uso nas tests
+class JobModelIntegrationTest(TransactionTestCase):
+    def test_job_execution_with_factory(self):
+        # Arrange
+        job = JobExecutionFactory(status='completed')
+        
+        # Act & Assert
+        self.assertEqual(job.status, 'completed')
+        self.assertTrue(job.end_time > job.start_time)
+```
+
+#### 5. **Configurações de Teste Específicas**
+
+```python
+# config/settings/testing.py
+from .base import *
+
+# Banco de dados mais rápido para testes
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+        'OPTIONS': {
+            'timeout': 20,
+        }
+    }
+}
+
+# Desabilitar migrações desnecessárias
+class DisableMigrations:
+    def __contains__(self, item):
+        return True
+    
+    def __getitem__(self, item):
+        return None
+
+# Apenas para testes rápidos - cuidado com testes que dependem de migrações
+MIGRATION_MODULES = DisableMigrations()
+
+# Configurações específicas para testes
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.MD5PasswordHasher',  # Mais rápido para testes
+]
+
+# Desabilitar logs desnecessários em testes
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'null': {
+            'class': 'logging.NullHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['null'],
+        },
+    },
+}
+
+# Cache em memória para testes
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
+
+# Configurações LangChain para testes
+LANGCHAIN_CONFIG = {
+    'OPENAI_API_KEY': 'test-key-not-real',
+    'DEFAULT_MODEL': 'gpt-3.5-turbo',
+    'DEFAULT_TEMPERATURE': 0.0,  # Determinístico para testes
+    'MAX_TOKENS': 100,  # Limitar para testes
+    'TIMEOUT': 5,  # Timeout mais curto
+}
+```
+
+#### 6. **CI/CD Pipeline para Testes**
+
+```yaml
+# .github/workflows/tests.yml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+        django-version: [4.2, 5.0]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements/testing.txt
+        pip install Django==${{ matrix.django-version }}
+    
+    - name: Run unit tests
+      run: |
+        coverage run --source='.' manage.py test --tag=unit --settings=config.settings.testing
+    
+    - name: Run integration tests
+      run: |
+        coverage run --append --source='.' manage.py test --tag=integration --settings=config.settings.testing
+    
+    - name: Generate coverage report
+      run: |
+        coverage report -m
+        coverage xml
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+```
+
+### 📈 Métricas e Cobertura de Testes
+
+```python
+# pytest.ini (se usar pytest)
+[tool:pytest]
+DJANGO_SETTINGS_MODULE = config.settings.testing
+python_files = tests.py test_*.py *_tests.py
+addopts = 
+    --cov=apps
+    --cov=core
+    --cov-report=term-missing
+    --cov-report=html
+    --cov-fail-under=90
+    --maxfail=5
+    --tb=short
+markers =
+    unit: marks tests as unit tests
+    integration: marks tests as integration tests
+    e2e: marks tests as end-to-end tests
+    slow: marks tests as slow
+    fast: marks tests as fast
+```
+
+---
+
+## �🔒 Boas Práticas de Segurança
 
 ### Environment Variables (.env)
 
@@ -1321,11 +1980,22 @@ class JobEventPublisher:
 - [ ] Implementar observers para eventos
 
 ### ✅ Testes
-- [ ] Configurar base classes de teste
-- [ ] Implementar testes unitários (AAA pattern)
+- [ ] Configurar estrutura de testes (unit/integration/functional)
+- [ ] Implementar base classes de teste (BaseTestCase, LangChainTestCase)
+- [ ] Criar factories para dados de teste (factory_boy)
+- [ ] Implementar testes unitários com mocking apropriado
+  - [ ] Testes de modelos (Django TestCase)
+  - [ ] Testes de services (mocking de dependências externas)
+  - [ ] Testes de utils (SimpleTestCase para código sem DB)
 - [ ] Implementar testes de integração
-- [ ] Configurar coverage reports
-- [ ] Implementar testes end-to-end
+  - [ ] Fluxos entre múltiplos componentes (TransactionTestCase)
+  - [ ] Testes de scheduler com persistência
+  - [ ] Integrações LangChain + Jobs + Database
+- [ ] Configurar tags para categorização (@tag decorator)
+- [ ] Implementar testes funcionais/E2E quando necessário
+- [ ] Configurar coverage reports (meta: >90%)
+- [ ] Configurar CI/CD pipeline para testes
+- [ ] Criar configurações específicas para ambiente de teste
 
 ### ✅ Segurança
 - [ ] Implementar middleware de segurança
