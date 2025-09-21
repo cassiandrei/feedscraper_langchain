@@ -80,13 +80,13 @@ class ProcessedSummaryFactory(DjangoModelFactory):
     technical_note = factory.SubFactory(TechnicalNoteFactory)
     summary = factory.Faker("text", max_nb_chars=500)
     key_points = factory.LazyFunction(
-        lambda: [factory.Faker("sentence")._generate() for _ in range(3)]
+        lambda: ["Ponto importante 1", "Ponto importante 2", "Ponto importante 3"]
     )
     changes_identified = factory.LazyFunction(
-        lambda: [factory.Faker("sentence")._generate() for _ in range(2)]
+        lambda: ["Mudança principal 1", "Mudança principal 2"]
     )
     topics = factory.LazyFunction(
-        lambda: [factory.Faker("word")._generate() for _ in range(3)]
+        lambda: ["NFE", "XML", "Validação"]
     )
     model_used = "gpt-3.5-turbo"
     processing_time = factory.Faker("pyfloat", min_value=0.5, max_value=5.0)
