@@ -56,7 +56,7 @@ class NFEJobManager:
             # 1. Job de scraping (diário às 9h)
             try:
                 self.scheduler.add_job(
-                    func=nfe_fazenda_scraping_job,
+                    func=scrape_nfe_fazenda_job,
                     trigger="cron",
                     job_id=self.SCRAPING_JOB_ID,
                     day_of_week="mon-fri",  # Segunda a sexta

@@ -36,18 +36,19 @@ class JobsLangChainIntegrationTest(BaseIntegrationTest):
             self.scheduler_service.shutdown()
         super().tearDown()
 
-    @patch(
-        "apps.langchain_integration.services.scrapers.nfe_fazenda.NFEFazendaScraper.scrape_new_items"
-    )
-    def test_scheduled_scraping_job_integration(self, mock_scrape):
+    @patch("apps.jobs.tasks.NFEFazendaScraper")
+    def test_scheduled_scraping_job_integration(self, mock_scraper_class):
         """Testa integração do job agendado de scraping com o banco de dados."""
         # Arrange
-        mock_scrape.return_value = {
-            "success": True,
+        mock_scraper = Mock()
+        mock_scraper.scrape_new_items.return_value = {
+            "total_found": 3,
             "new_items": 2,
+            "duplicates_skipped": 0,
             "errors": 0,
-            "duration": 1.5,
+            "processing_time": 1.5,
         }
+        mock_scraper_class.return_value = mock_scraper
 
         # Act - Execute job directly (simulation of scheduled execution)
         from apps.jobs.tasks import scrape_nfe_fazenda_job
@@ -56,7 +57,11 @@ class JobsLangChainIntegrationTest(BaseIntegrationTest):
 
         # Assert
         self.assertIsInstance(result, dict)
-        mock_scrape.assert_called_once()
+        self.assertTrue(result["success"])
+        
+        # Verificar que o scraper foi instanciado e o método scrape_new_items foi chamado
+        mock_scraper_class.assert_called_once()
+        mock_scraper.scrape_new_items.assert_called_once()
 
     @patch(
         "apps.langchain_integration.services.technical_note_processor.TechnicalNoteSummarizerService.process_batch"
@@ -145,11 +150,13 @@ class JobsLangChainIntegrationTest(BaseIntegrationTest):
             self.scheduler_service.remove_job("test_langchain_job")
         self.scheduler_service.shutdown()
 
-    @patch("langchain_openai.ChatOpenAI")
-    def test_error_propagation_between_systems(self, mock_openai):
+    @patch("apps.jobs.tasks.TechnicalNoteSummarizerService")
+    def test_error_propagation_between_systems(self, mock_service_class):
         """Testa propagação de erros entre sistema de jobs e LangChain."""
-        # Arrange
-        mock_openai.side_effect = Exception("LangChain API Error")
+        # Arrange - Simular erro total no service (não apenas erros de processamento)
+        mock_service = Mock()
+        mock_service.get_pending_notes.side_effect = Exception("LangChain API Error")
+        mock_service_class.return_value = mock_service
 
         # Criar nota para processamento
         note = TechnicalNoteFactory(source=self.data_source)
@@ -190,11 +197,11 @@ class JobsLangChainIntegrationTest(BaseIntegrationTest):
 
         # Verificar integridade dos dados
         created_log = ProcessingLog.objects.filter(
-            technical_note=note, operation="job_execution"
+            technical_note=note, operation="processing"
         ).first()
 
         self.assertIsNotNone(created_log)
-        self.assertEqual(created_log.technical_note.data_source, self.data_source)
+        self.assertEqual(created_log.technical_note.source, self.data_source)
 
     @patch("apps.langchain_integration.services.scrapers.nfe_fazenda.NFEFazendaScraper")
     @patch("langchain_openai.ChatOpenAI")
