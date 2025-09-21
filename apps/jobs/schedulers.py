@@ -90,3 +90,10 @@ class JobSchedulerService:
         """Get a specific job by ID."""
         scheduler = cls.get_scheduler()
         return scheduler.get_job(job_id)
+
+    @classmethod
+    def is_running(cls):
+        """Check if scheduler is running."""
+        if cls._scheduler:
+            return cls._scheduler.running
+        return False

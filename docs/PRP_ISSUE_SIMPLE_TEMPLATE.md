@@ -33,11 +33,6 @@
 ### Por que é importante?
 [JUSTIFICATIVA_DA_ISSUE]
 
-### Critérios de Aceitação
-- [ ] [CRITERIO_1]
-- [ ] [CRITERIO_2]
-- [ ] [CRITERIO_3]
-
 ---
 
 ## 🎯 Requisitos Funcionais
@@ -85,8 +80,8 @@
 
 ## 🏗️ Arquitetura e Design
 
-### Componentes Afetados
-Baseado na arquitetura do [PRP_BASE.md](./PRP_BASE.md):
+- Baseado na arquitetura do [PRP_BASE.md](./PRP_BASE.md)
+- Sempre utilize o MCP @Context7 para obter boas práticas e documentações atualizadas
 
 #### Django Apps
 - [ ] `apps.jobs` - [DESCREVER_MODIFICAÇÕES]
@@ -206,6 +201,10 @@ Baseado na arquitetura do [PRP_BASE.md](./PRP_BASE.md):
 - Requisitos em: [PRP_BASE.md](../PRP_BASE.md)
 - Issues relacionadas: [#NUMERO - TÍTULO]
 - Documentação: [LINKS_RELEVANTES]
+
+## Regras
+
+- Toda documentação nova precisa ficar em /docs e se for referente a issue, busque a pasta da issue.
 
 ---
 
