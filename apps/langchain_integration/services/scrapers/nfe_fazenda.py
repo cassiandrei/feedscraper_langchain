@@ -79,11 +79,18 @@ class NFEFazendaScraper(BaseFeedScraper):
                     if not href:
                         continue
 
+                    # Limpar espaços e quebras de linha do href
+                    href = href.strip()
+                    
                     # Construir URL completa
                     if href.startswith("http"):
                         full_url = href
                     else:
-                        full_url = urljoin(self.base_url, href)
+                        # FIX: NFE Fazenda precisa do prefixo /portal/ para os PDFs
+                        if href.startswith("exibirArquivo.aspx"):
+                            full_url = f"{self.base_url}/portal/{href}"
+                        else:
+                            full_url = urljoin(self.base_url, href)
 
                     # Extrair título - pode estar no texto do link ou em elementos próximos
                     title = self._extract_title_from_link(link, soup)
@@ -100,6 +107,7 @@ class NFEFazendaScraper(BaseFeedScraper):
                         "publication_date": publication_date,
                     }
 
+                    logger.info(f"[DEBUG] Item criado: {title[:50]} -> {full_url[:50]}")
                     items.append(item)
 
                 except Exception as e:
